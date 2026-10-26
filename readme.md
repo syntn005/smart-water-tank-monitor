@@ -1,34 +1,53 @@
-
 # Smart Water Tank Level Monitoring and Overflow Prevention
 
-An Arduino-based project that monitors water levels and demonstrates
-automatic pump control and overflow alerts using an HC-SR04 ultrasonic
-sensor, LEDs, and a buzzer.
+An Arduino-based project that monitors water levels and demonstrates automatic pump control and overflow alerts using an HC-SR04 ultrasonic sensor, LEDs, and a buzzer.
+
+![Circuit](images/circuit.png)
+
+## Project Demonstration
+
+### 1. Tank Filling
+
+The simulated water level increases while the pump is ON. As the tank approaches 90% capacity, the pump automatically turns OFF to prevent overflow.
+
+![Tank Filling Simulation](images/tank-filling.png)
+
+### 2. Tank Draining and Automatic Refilling
+
+When the pump is OFF, the simulation decreases the water level to represent water usage. When the level reaches 20% or below, the pump turns ON again.
+
+![Tank Draining Simulation](images/tank-draining.png)
+
+### 3. Overflow Prevention
+
+At 90% water level, the pump turns OFF and the buzzer activates to warn that the tank is nearly full. The red LED indicates a high water level.
+
+![Buzzing due to Overflow](images/buzzing.png)
 
 ## Features
 
 - 120 cm tank-height configuration
 - Ultrasonic distance calculation
-- Automatic pump control logic
+- Automatic pump-control logic
 - Pump ON at or below 20%
 - Pump OFF at or above 90%
 - Green and red level indicators
 - Buzzer alarm at or above 90%
 - Simulation mode for automatic filling and draining
-- Serial Monitor output
+- Serial Monitor output for distance, water level, and pump status
+- Actual HC-SR04 sensor mode for physical measurements
 
 ## Components
 
-- Arduino Uno
+- Arduino Uno R3
 - HC-SR04 ultrasonic sensor
-- Three LEDs with 220-ohm resistors
+- Three LEDs and 220-ohm resistors
 - Piezo buzzer
 - Breadboard and jumper wires
 
-For a physical pump, a suitable relay or MOSFET driver and a separate
-power supply are also required.
+For a physical pump, a suitable relay or MOSFET driver, a separate power supply, and a compatible low-voltage DC pump are also required.
 
-## Wiring
+## Circuit Connections
 
 | Component | Arduino connection |
 |---|---|
@@ -36,97 +55,115 @@ power supply are also required.
 | HC-SR04 GND | GND |
 | HC-SR04 TRIG | D9 |
 | HC-SR04 ECHO | D10 |
-| Pump indicator LED | D5 |
+| Pump status LED | D5 |
 | Green LED | D6 |
 | Red LED | D7 |
 | Buzzer positive | D8 |
-| LED cathodes and buzzer negative | GND |
+| LED cathodes | GND |
+| Buzzer negative | GND |
 
 Connect each LED through a 220-ohm resistor.
 
 ## How It Works
 
-The HC-SR04 measures the time taken by an ultrasonic pulse to travel
-to the water surface and return.
+### 1. Distance Measurement
 
-Distance is calculated using:
+The HC-SR04 sends an ultrasonic pulse toward the water surface and measures the time taken for the echo to return.
 
-    distance = duration * 0.0343 / 2.0
+The distance is calculated using:
 
-Water level is calculated using:
+```cpp
+float distance = duration * 0.0343 / 2.0;
+```
 
-    waterLevel = tankHeight - distance
+Here:
+- `duration` is the echo travel time in microseconds.
+- `0.0343` is the approximate speed of sound in centimetres per microsecond.
+- Division by `2.0` accounts for the sound travelling to the water and back.
 
-The water-level percentage is:
+### 2. Water-Level Calculation
 
-    percentage = (waterLevel / tankHeight) * 100
+The configured tank height is 120 cm.
 
-The configured tank height is 120 cm. This value should match the
-actual distance from the sensor's measuring face to the tank bottom.
+```cpp
+waterLevel = tankHeight - distance;
+percentage = (waterLevel / tankHeight) * 100.0;
+```
 
-## Pump Control
+The tank height must match the actual vertical distance from the sensor's measuring face to the tank bottom when the tank is empty.
 
-- At 20% or below, the pump status LED turns ON.
-- At 90% or above, the pump status LED turns OFF.
-- The red LED turns ON at 80%.
-- The buzzer sounds at 90% or above.
-- Between the pump thresholds, the previous pump state is maintained.
+### 3. Automatic Pump Control
+
+| Water level | Pump status | Alarm |
+|---|---|---|
+| 20% or below | ON | OFF |
+| Between 20% and 90% | Maintains previous state | OFF |
+| 90% or above | OFF | ON |
+
+The program uses **hysteresis**: separate thresholds for starting and stopping the pump. This prevents the pump from repeatedly switching on and off around a single threshold.
+
+The green LED indicates levels below 80%, while the red LED indicates levels of 80% or above.
 
 ## Simulation and Real Hardware
 
-The project supports two operating modes, selected using
-`simulationMode` in the Arduino code.
+The program supports two operating modes controlled by the `simulationMode` variable.
 
-### Simulation mode
+### Simulation Mode
 
-Set:
+```cpp
+const bool simulationMode = true;
+```
 
-    const bool simulationMode = true;
+In this mode, the program simulates water filling while the pump is ON and water usage while the pump is OFF.
 
-The program simulates water filling while the pump is ON and water
-usage while the pump is OFF. It calculates a virtual sensor distance
-from the simulated water level and applies the ultrasonic distance
-formula.
+It calculates a virtual sensor distance from the simulated water level and uses the ultrasonic distance formula to demonstrate the control logic.
 
-This mode demonstrates the control logic in Tinkercad. The virtual
-distance is calculated in software; it is not a measurement from the
-physical ultrasonic sensor.
+**Important:** The distance in simulation mode is calculated in software. It is not measured from a changing physical water surface.
 
-### Actual sensor mode
+### Actual Sensor Mode
 
-Set:
+```cpp
+const bool simulationMode = false;
+```
 
-    const bool simulationMode = false;
+In this mode, the program triggers the HC-SR04, measures the echo duration, and calculates the actual distance and water level.
 
-The program triggers the HC-SR04, measures the echo duration, and
-calculates the actual distance and water level. Water movement is
-physical in this mode; the program does not artificially change the
-water level.
+The program does not artificially increase or decrease the water level in this mode. Water movement must happen physically, or the sensor's simulated target must be adjusted in Tinkercad.
 
-Tinkercad does not automatically connect a software water-filling
-simulation to the HC-SR04's virtual target.
+Tinkercad does not automatically connect the software-based filling simulation to the HC-SR04's virtual target.
 
-## Running the Project
+## Running the Project in Tinkercad
 
-1. Open the circuit in Tinkercad or connect the physical components.
-2. Open the Arduino code editor.
-3. Copy `smart_water_tank.ino` into the editor.
-4. Start the simulation or upload the sketch to the Arduino Uno.
-5. Open the Serial Monitor at 9600 baud.
-6. Observe the water-level percentage, distance, pump status, LEDs,
-   and buzzer.
+1. Create an Arduino Uno circuit in Tinkercad Circuits.
+2. Connect the components according to the wiring table.
+3. Copy `smart_water_tank.ino` into the Arduino code editor.
+4. Set `simulationMode` to `true`.
+5. Start the simulation and open the Serial Monitor.
+6. Observe the simulated water level, calculated distance, pump status, LEDs, and buzzer.
 
-## Safety Notes
+## Physical Prototype and Safety
 
-The pump indicator LED does not operate a physical pump. A real pump
-must be connected through a suitable driver and power supply.
+The pump LED in this project indicates the desired pump state; it does not power a real pump.
 
-Keep electronics away from water. Use an independent overflow safeguard
-and test the complete setup before unattended operation.
+To operate a physical pump:
+- Use a suitably rated relay or MOSFET driver.
+- Use a separate power supply appropriate for the pump.
+- Keep the Arduino and electrical connections away from water.
+- Add independent overflow protection and a pump timeout.
+- Test sensor failures and pump switching before unattended use.
 
-## Technology
+Never connect a pump directly to an Arduino GPIO pin.
+
+## Technologies Used
 
 - Arduino C++
-- Ultrasonic sensing
+- HC-SR04 ultrasonic sensing
 - Embedded systems
 - Tinkercad Circuits
+
+## Future Improvements
+
+- Add an LCD or OLED to display the water level.
+- Add Wi-Fi-based monitoring and notifications.
+- Add an independent high-level sensor for backup overflow protection.
+- Test and calibrate the system with a physical tank and pump.
